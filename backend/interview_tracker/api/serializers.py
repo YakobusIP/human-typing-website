@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Session, Response
+from .models import Session, UserResponse
 
 
 class SessionSerializer(serializers.ModelSerializer):
@@ -8,11 +8,11 @@ class SessionSerializer(serializers.ModelSerializer):
         fields = ["id", "session_id"]
 
 
-class ResponseSerializer(serializers.ModelSerializer):
-    total_interaction_type = serializers.SerializerMethodField()
+class UserResponseSerializer(serializers.ModelSerializer):
+    total_interaction_time = serializers.SerializerMethodField()
 
     class Meta:
-        model = Response
+        model = UserResponse
         fields = ["session", "question_text", "answer_text", "backspace_count", "letter_click_counts", "typing_duration",
                   "question_presented_at", "answer_submitted_at", "total_interaction_time", "response_type", "device_type"]
 
