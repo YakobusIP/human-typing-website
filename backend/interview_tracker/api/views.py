@@ -20,6 +20,10 @@ class ChatQuestionAPIView(APIView):
         previous_responses = UserResponse.objects.filter(session=session)
         serializer = UserResponseSerializer(previous_responses, many=True)
 
+        for response in previous_responses:
+            if response.answer_text in [None, ""]:
+                return Response({ "id": response.id , "question": response.question_text }, status=status.HTTP_200_OK)
+
         previous_questions = ""
 
         for index, response in enumerate(serializer.data):
@@ -45,15 +49,30 @@ class ChatQuestionAPIView(APIView):
 
         question = chat.invoke(chat_prompt.format_prompt(previous_questions=previous_questions).to_messages()).to_json()["kwargs"]["content"]
 
-        UserResponse.objects.create(session=session, question_text=question)
+        new_question = UserResponse.objects.create(session=session, question_text=question)
+        new_question.save()
 
-        return Response({ "question": question }, status=status.HTTP_200_OK)
+        return Response({ "id": new_question.id , "question": question }, status=status.HTTP_200_OK)
     
 class ChatAnswerAPIView(APIView):
     def post(self, request):
-        # Add answer
-        serializer = UserResponseSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        session_id = request.data.pop("session_id")
+        question_id = request.data.pop("question_id")
+
+        session = Session.objects.get(session_id=session_id)
+        response = UserResponse.objects.get(id=question_id, session=session)
+
+        response.answer_text = request.data.get("answer_text")
+        response.backspace_count = request.data.get("backspace_count")
+        response.letter_click_counts = request.data.get("letter_click_counts")
+        response.typing_duration = request.data.get("typing_duration")
+        response.question_presented_at = request.data.get("question_presented_at")
+        response.answer_submitted_at = request.data.get("answer_submitted_at")
+        response.total_interaction_time = request.data.get("total_interaction_time")
+        response.response_type = request.data.get("response_type")
+        response.device_type = request.data.get("device_type")
+
+
+        response.save()
+        
+        return Response(status=status.HTTP_200_OK)

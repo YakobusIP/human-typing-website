@@ -58,7 +58,7 @@ function App() {
     setIsLoadingQuestion(true);
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/chat/${session_id}`
+        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/${session_id}`
       );
       localStorage.setItem("question_id", response.data.id);
       setQuestion(response.data.question);
@@ -74,7 +74,9 @@ function App() {
 
   const getSessionID = async () => {
     try {
-      const response = await axios.get("http://localhost:8000/api/session");
+      const response = await axios.get(
+        "${import.meta.env.VITE_BASE_AXIOS_URL}/session"
+      );
       localStorage.setItem("session_id", response.data.session_id);
       onClose();
       await getQuestion(response.data.session_id as string);
@@ -130,7 +132,7 @@ function App() {
       const isTablet =
         /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
 
-      await axios.post(`http://localhost:8000/api/chat`, {
+      await axios.post(`${import.meta.env.VITE_BASE_AXIOS_URL}/chat`, {
         session_id: localStorage.getItem("session_id"),
         question_id: localStorage.getItem("question_id"),
         answer_text: answer,
