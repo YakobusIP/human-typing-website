@@ -1,7 +1,8 @@
-import { useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { BaseSyntheticEvent, useEffect, useState } from "react";
 import {
   Button,
-  Center,
+  Divider,
   Flex,
   HStack,
   Heading,
@@ -13,16 +14,167 @@ import {
   ModalHeader,
   ModalOverlay,
   OrderedList,
+  Spinner,
   Stack,
   Text,
   Textarea,
   VStack,
-  useDisclosure
+  useDisclosure,
+  useToast
 } from "@chakra-ui/react";
+import axios, { AxiosError } from "axios";
+
+type KeyPresses = {
+  [key: string]: number;
+};
 
 function App() {
-  const { isOpen, onClose, onOpen } = useDisclosure({ defaultIsOpen: true });
+  const initializeKeyPressDict = () => {
+    const alphabets = "abcdefghijklmnopqrstuvwxyz".split("");
+    const keyPress: KeyPresses = {};
+    alphabets.forEach((letter) => (keyPress[letter] = 0));
+    return keyPress;
+  };
+
+  const toast = useToast({ position: "top-right" });
+  const { isOpen, onClose } = useDisclosure({
+    defaultIsOpen: localStorage.getItem("session_id") ? false : true
+  });
+  const [answer, setAnswer] = useState("");
+  const [keyPresses, setKeyPresses] = useState(initializeKeyPressDict());
+  const [backspaceCount, setBackspaceCount] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
   const [source, setSource] = useState<string>();
+  const [startTime, setStartTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+  const [questionPresented, setQuestionPresented] = useState<string>();
+  const [question, setQuestion] = useState("");
+
+  const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
+
+  const getQuestion = async (session_id: string) => {
+    setIsLoadingQuestion(true);
+    try {
+      const response = await axios.get(
+        `http://localhost:8000/api/chat/${session_id}`
+      );
+      localStorage.setItem("question_id", response.data.id);
+      setQuestion(response.data.question);
+      setQuestionPresented(new Date().toISOString());
+      setAnswer("");
+      setIsLoadingQuestion(false);
+    } catch (e) {
+      if (!(e instanceof AxiosError)) return;
+      toast({ title: "Error", description: "Internal server error" });
+      setIsLoadingQuestion(false);
+    }
+  };
+
+  const getSessionID = async () => {
+    try {
+      const response = await axios.get("http://localhost:8000/api/session");
+      localStorage.setItem("session_id", response.data.session_id);
+      onClose();
+      await getQuestion(response.data.session_id as string);
+    } catch (e) {
+      if (!(e instanceof AxiosError)) return;
+      toast({
+        title: "Error",
+        description: "Internal server error",
+        status: "error"
+      });
+    }
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const key = event.key.toLowerCase();
+    if (key === "backspace") {
+      setBackspaceCount(backspaceCount + 1);
+    } else if (key.length === 1 && key.match(/[a-z]/i)) {
+      setKeyPresses((prevKeyPresses: KeyPresses) => ({
+        ...prevKeyPresses,
+        [key]: (prevKeyPresses[key] || 0) + 1
+      }));
+    }
+  };
+
+  const handleBlur = () => {
+    if (isTyping) {
+      const endTime = Date.now();
+      const currentDuration = Math.round((endTime - startTime) / 1000);
+      setDuration((duration) => duration + currentDuration);
+      setIsTyping(false); // Pause typing
+    }
+  };
+
+  const handleCopyPaste = (event: BaseSyntheticEvent) => {
+    event.preventDefault();
+    toast({
+      title: "Action not allowed",
+      description: "Copy paste is disabled",
+      status: "info"
+    });
+  };
+
+  const sendAnswer = async () => {
+    setIsLoadingAnswer(true);
+    try {
+      const userAgent = navigator.userAgent;
+
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          userAgent
+        );
+      const isTablet =
+        /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+
+      await axios.post(`http://localhost:8000/api/chat`, {
+        session_id: localStorage.getItem("session_id"),
+        question_id: localStorage.getItem("question_id"),
+        answer_text: answer,
+        backspace_count: backspaceCount,
+        letter_click_counts: keyPresses,
+        typing_duration: duration,
+        question_presented_at: questionPresented,
+        answer_submitted_at: new Date().toISOString(),
+        total_interaction_time: Math.round(
+          (Date.now() - new Date(questionPresented as string).getTime()) / 1000
+        ),
+        response_type:
+          source === "personal-answer"
+            ? "PERSONAL"
+            : source === "ai-paraphrase"
+              ? "AI_PARAPHRASE"
+              : "FULLY_AI",
+        device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+      });
+
+      setIsLoadingAnswer(false);
+      setQuestion("");
+
+      await getQuestion(localStorage.getItem("session_id") as string);
+    } catch (e) {
+      if (!(e instanceof AxiosError)) return;
+      toast({ title: "Error", description: "Internal server error" });
+      setIsLoadingAnswer(false);
+    }
+  };
+
+  useEffect(() => {
+    const session_id = localStorage.getItem("session_id");
+    if (session_id) {
+      getQuestion(session_id as string);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (answer.length > 0 && !isTyping) {
+      setIsTyping(true);
+      setStartTime(Date.now());
+    }
+  }, [answer, isTyping]);
 
   return (
     <>
@@ -48,67 +200,108 @@ function App() {
           direction={"column"}
           p={8}
         >
-          <VStack spacing={16} w={"60%"}>
+          <VStack spacing={{ base: 8, lg: 8 }} w={{ base: "full", lg: "60%" }}>
             <VStack spacing={4}>
-              <Text fontSize={20}>
+              <Text fontSize={18}>
                 Beberapa informasi mengenai pertanyaan dan jawaban:
               </Text>
-              <Text fontSize={20}>
+              <Text fontSize={18}>
                 1. Pertanyaan akan disajikan dalam{" "}
                 <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
                 menggunakan <strong>Bahasa Inggris</strong>
               </Text>
-              <Text fontSize={20}>
+              <Text fontSize={18}>
                 2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
                 atau menggunakan LLM seperti ChatGPT
               </Text>
-              <Text fontSize={20}>
+              <Text fontSize={18}>
                 3. Setelah menjawab pertanyaan, pilih salah satu sumber jawaban
                 dan tekan submit
               </Text>
-              <Text fontSize={20}>
+              <Text fontSize={18}>
                 4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
                 <strong>Anda boleh berhenti kapan saja</strong>
               </Text>
             </VStack>
+            <Divider />
             <VStack w={"full"} spacing={4}>
-              <Text fontSize={20}>Silahkan jawab pertanyaan di bawah ini:</Text>
-              <Text fontSize={24}>Tell me about yourself</Text>
+              <Text fontSize={18}>Silahkan jawab pertanyaan di bawah ini:</Text>
+              {isLoadingQuestion ? (
+                <HStack>
+                  <Spinner
+                    thickness="4px"
+                    speed="0.65s"
+                    emptyColor="gray.200"
+                    color="blue.500"
+                  />
+                  <Text fontSize={20}>Generating question</Text>
+                </HStack>
+              ) : (
+                <Text fontSize={20}>{question}</Text>
+              )}
+
               <Textarea
+                value={answer}
                 rows={5}
                 width={"full"}
-                placeholder="Silahkan jawab disni"
+                placeholder="Silahkan jawab disini"
                 resize={"none"}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={handleKeyPress}
+                onBlur={handleBlur}
+                onCopy={handleCopyPaste}
+                onPaste={handleCopyPaste}
               />
-              <Text fontSize={20}>Silahkan pilih salah satu</Text>
-              <HStack spacing={4}>
+              <Text fontSize={18}>
+                Silahkan pilih salah satu sumber jawaban
+              </Text>
+              <Stack
+                direction={{ base: "column", lg: "row" }}
+                spacing={4}
+                w={"80%"}
+              >
                 <Button
+                  w={"full"}
                   onClick={() => setSource("personal-answer")}
                   bgColor={source == "personal-answer" ? "button" : undefined}
                 >
                   Sumber jawaban sendiri
                 </Button>
                 <Button
-                  onClick={() => setSource("ai-paraphrase")}
-                  bgColor={source == "ai-paraphrase" ? "button" : undefined}
-                >
-                  Sumber jawaban seluruhnya AI
-                </Button>
-                <Button
+                  w={"full"}
                   onClick={() => setSource("fully-ai")}
                   bgColor={source == "fully-ai" ? "button" : undefined}
                 >
                   Sumber jawaban sebagian AI
                 </Button>
-              </HStack>
-              <Button bgColor={"button"} w={"25%"}>
+                <Button
+                  w={"full"}
+                  onClick={() => setSource("ai-paraphrase")}
+                  bgColor={source == "ai-paraphrase" ? "button" : undefined}
+                >
+                  Sumber jawaban seluruhnya AI
+                </Button>
+              </Stack>
+              <Button
+                bgColor={"button"}
+                w={"25%"}
+                isDisabled={!source || answer.length === 0}
+                isLoading={isLoadingAnswer}
+                onClick={() => sendAnswer()}
+              >
                 Submit
               </Button>
             </VStack>
           </VStack>
         </Flex>
       </VStack>
-      <Modal isOpen={isOpen} onClose={onClose} isCentered size={"2xl"}>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        isCentered
+        size={"2xl"}
+        closeOnOverlayClick={false}
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Syarat penggunaan</ModalHeader>
@@ -133,13 +326,13 @@ function App() {
                   melalui website ini.
                 </ListItem>
               </OrderedList>
-              <Text>
+              <Text fontWeight={700}>
                 Terima kasih telah berkontribusi pada penelitian saya.
               </Text>
             </Stack>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onClose} bgColor={"button"}>
+            <Button onClick={() => getSessionID()} bgColor={"button"}>
               Saya sudah membaca
             </Button>
           </ModalFooter>
