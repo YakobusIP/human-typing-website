@@ -236,7 +236,7 @@ function App() {
                     emptyColor="gray.200"
                     color="blue.500"
                   />
-                  <Text fontSize={20}>Generating question</Text>
+                  <Text fontSize={20}>Generating question...</Text>
                 </HStack>
               ) : (
                 <Text fontSize={20}>{question}</Text>
@@ -289,6 +289,7 @@ function App() {
                 w={"25%"}
                 isDisabled={!source || answer.length === 0}
                 isLoading={isLoadingAnswer}
+                loadingText="Loading..."
                 onClick={() => sendAnswer()}
               >
                 Submit
