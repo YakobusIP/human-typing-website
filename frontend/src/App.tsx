@@ -295,6 +295,11 @@ function App() {
                 Submit
               </Button>
             </VStack>
+            <Text>
+              Apabila ada pertanyaan, silahkan kontak saya lewat ID Line{" "}
+              <strong>kobusryan</strong> atau nomor Whatsapp{" "}
+              <strong>08987481816</strong>. Terima kasih.
+            </Text>
           </VStack>
         </Flex>
       </VStack>
