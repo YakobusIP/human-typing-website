@@ -204,9 +204,9 @@ function App() {
         >
           <VStack spacing={{ base: 8, lg: 8 }} w={{ base: "full", lg: "60%" }}>
             <VStack spacing={4}>
-              <Text fontSize={18}>
+              <Heading fontSize={30}>
                 Beberapa informasi mengenai pertanyaan dan jawaban:
-              </Text>
+              </Heading>
               <Text fontSize={18}>
                 1. Pertanyaan akan disajikan dalam{" "}
                 <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
@@ -287,7 +287,9 @@ function App() {
               <Button
                 bgColor={"button"}
                 w={"25%"}
-                isDisabled={!source || answer.length === 0}
+                isDisabled={
+                  !source || answer.length === 0 || question.length === 0
+                }
                 isLoading={isLoadingAnswer}
                 loadingText="Loading..."
                 onClick={() => sendAnswer()}
