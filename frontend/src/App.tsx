@@ -23,6 +23,7 @@ import {
   useToast
 } from "@chakra-ui/react";
 import axios, { AxiosError } from "axios";
+import TypingEffect from "@/components/TypingText";
 
 type KeyPresses = {
   [key: string]: number;
@@ -270,7 +271,7 @@ function App() {
                   <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
                   menggunakan <strong>Bahasa Inggris</strong>
                 </Text>
-                <Text fontSize={18}>
+                <Text fontSize={18} textAlign={"center"}>
                   2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
                   atau menggunakan LLM seperti ChatGPT
                 </Text>
@@ -299,7 +300,7 @@ function App() {
                     <Text fontSize={20}>Generating question...</Text>
                   </HStack>
                 ) : (
-                  <Text fontSize={20}>{question}</Text>
+                  <TypingEffect text={question} />
                 )}
 
                 <Textarea
