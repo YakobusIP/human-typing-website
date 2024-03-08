@@ -36,6 +36,9 @@ CORS_ALLOW_HEADERS = ['*']
 
 APPEND_SLASH = False
 
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'None'
+
 # Application definition
 
 INSTALLED_APPS = [
