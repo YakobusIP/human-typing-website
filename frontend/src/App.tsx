@@ -427,7 +427,7 @@ function App() {
                   Silahkan pilih salah satu sumber jawaban
                 </Text>
                 <Stack
-                  direction={{ base: "column", lg: "row" }}
+                  direction={{ base: "column", "2xl": "row" }}
                   spacing={4}
                   w={"80%"}
                 >
