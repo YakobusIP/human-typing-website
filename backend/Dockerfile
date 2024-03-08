@@ -22,4 +22,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Run the application
-CMD gunicorn interview_tracker.interview_tracker.wsgi:application --bind 0.0.0.0:$PORT
+CMD ["cd ./interview_tracker", "&&", "gunicorn interview_tracker.wsgi:application --bind 0.0.0.0:$PORT"]
