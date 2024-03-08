@@ -60,41 +60,82 @@ function App() {
 
   const getQuestion = async () => {
     setIsLoadingQuestion(true);
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
-        { withCredentials: true }
-      );
-      localStorage.setItem("question_id", response.data.id);
-      setQuestion(response.data.question);
-      setQuestionPresented(new Date().toISOString());
-      setAnswer("");
-      setIsLoadingQuestion(false);
-    } catch (e) {
-      if (!(e instanceof AxiosError)) return;
-      toast({ title: "Error", description: "Internal server error" });
-      setIsLoadingQuestion(false);
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/samsung/${localStorage.getItem("session_key")}`
+        );
+        localStorage.setItem("question_id", response.data.id);
+        setQuestion(response.data.question);
+        setQuestionPresented(new Date().toISOString());
+        setAnswer("");
+        setIsLoadingQuestion(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setQuestion("Failed to generate question due to browser issues");
+        setIsLoadingQuestion(false);
+      }
+    } else {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
+          { withCredentials: true }
+        );
+        localStorage.setItem("question_id", response.data.id);
+        setQuestion(response.data.question);
+        setQuestionPresented(new Date().toISOString());
+        setAnswer("");
+        setIsLoadingQuestion(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setQuestion("Failed to generate question due to browser issues");
+        setIsLoadingQuestion(false);
+      }
     }
   };
 
   const getSession = async () => {
     setIsLoadingAgree(true);
-    try {
-      await axios.get(`${import.meta.env.VITE_BASE_AXIOS_URL}/session`, {
-        withCredentials: true
-      });
-      onClose();
-      setModalOpen(false);
-      await getQuestion();
-      setIsLoadingAgree(false);
-    } catch (e) {
-      if (!(e instanceof AxiosError)) return;
-      toast({
-        title: "Error",
-        description: "Internal server error",
-        status: "error"
-      });
-      setIsLoadingAgree(false);
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/session/samsung/${localStorage.getItem("session_key")}`
+        );
+
+        localStorage.setItem("session_key", response.data.session_key);
+        onClose();
+        setModalOpen(false);
+        await getQuestion();
+        setIsLoadingAgree(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({
+          title: "Error",
+          description: "Internal server error",
+          status: "error"
+        });
+        setIsLoadingAgree(false);
+      }
+    } else {
+      try {
+        await axios.get(`${import.meta.env.VITE_BASE_AXIOS_URL}/session`, {
+          withCredentials: true
+        });
+        onClose();
+        setModalOpen(false);
+        await getQuestion();
+        setIsLoadingAgree(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({
+          title: "Error",
+          description: "Internal server error",
+          status: "error"
+        });
+        setIsLoadingAgree(false);
+      }
     }
   };
 
@@ -162,54 +203,111 @@ function App() {
 
   const sendAnswer = async () => {
     setIsLoadingAnswer(true);
-    try {
-      const userAgent = navigator.userAgent;
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      try {
+        const userAgent = navigator.userAgent;
 
-      const isMobile =
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          userAgent
+        const isMobile =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            userAgent
+          );
+        const isTablet =
+          /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+
+        await axios.post(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/samsung`,
+          {
+            session_key: localStorage.getItem("session_key"),
+            question_id: localStorage.getItem("question_id"),
+            answer_text: answer,
+            backspace_count: backspaceCount,
+            letter_click_counts: keyPresses,
+            typing_duration: duration,
+            question_presented_at: questionPresented,
+            answer_submitted_at: new Date().toISOString(),
+            total_interaction_time: Math.round(
+              (Date.now() - new Date(questionPresented as string).getTime()) /
+                1000
+            ),
+            response_type:
+              source === "personal-answer"
+                ? "PERSONAL"
+                : source === "ai-paraphrase"
+                  ? "AI_PARAPHRASE"
+                  : "FULLY_AI",
+            device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+          },
+          { withCredentials: true }
         );
-      const isTablet =
-        /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
 
-      await axios.post(
-        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
-        {
-          question_id: localStorage.getItem("question_id"),
-          answer_text: answer,
-          backspace_count: backspaceCount,
-          letter_click_counts: keyPresses,
-          typing_duration: duration,
-          question_presented_at: questionPresented,
-          answer_submitted_at: new Date().toISOString(),
-          total_interaction_time: Math.round(
-            (Date.now() - new Date(questionPresented as string).getTime()) /
-              1000
-          ),
-          response_type:
-            source === "personal-answer"
-              ? "PERSONAL"
-              : source === "ai-paraphrase"
-                ? "AI_PARAPHRASE"
-                : "FULLY_AI",
-          device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
-        },
-        { withCredentials: true }
-      );
+        setIsLoadingAnswer(false);
+        setQuestion("");
 
-      setIsLoadingAnswer(false);
-      setQuestion("");
+        await getQuestion();
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setIsLoadingAnswer(false);
+      }
+    } else {
+      try {
+        const userAgent = navigator.userAgent;
 
-      await getQuestion();
-    } catch (e) {
-      if (!(e instanceof AxiosError)) return;
-      toast({ title: "Error", description: "Internal server error" });
-      setIsLoadingAnswer(false);
+        const isMobile =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            userAgent
+          );
+        const isTablet =
+          /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+
+        await axios.post(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
+          {
+            question_id: localStorage.getItem("question_id"),
+            answer_text: answer,
+            backspace_count: backspaceCount,
+            letter_click_counts: keyPresses,
+            typing_duration: duration,
+            question_presented_at: questionPresented,
+            answer_submitted_at: new Date().toISOString(),
+            total_interaction_time: Math.round(
+              (Date.now() - new Date(questionPresented as string).getTime()) /
+                1000
+            ),
+            response_type:
+              source === "personal-answer"
+                ? "PERSONAL"
+                : source === "ai-paraphrase"
+                  ? "AI_PARAPHRASE"
+                  : "FULLY_AI",
+            device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+          },
+          { withCredentials: true }
+        );
+
+        setIsLoadingAnswer(false);
+        setQuestion("");
+
+        await getQuestion();
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setIsLoadingAnswer(false);
+      }
     }
   };
 
   useEffect(() => {
-    checkSession();
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      if (localStorage.getItem("session_key")) {
+        setSessionActive(true);
+        setModalOpen(false);
+      } else {
+        setModalOpen(true);
+      }
+    } else {
+      checkSession();
+    }
     if (sessionActive) {
       getQuestion();
     }
@@ -408,7 +506,8 @@ function App() {
                 </ListItem>
               </OrderedList>
               <Text fontWeight={700}>
-                Terima kasih telah berkontribusi pada penelitian saya.
+                Terima kasih telah berkontribusi pada penelitian saya. Harap
+                menggunakan browser Chrome.
               </Text>
             </Stack>
           </ModalBody>
