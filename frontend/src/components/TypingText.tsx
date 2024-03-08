@@ -24,7 +24,11 @@ const TypingEffect = ({ text }: Props) => {
     }
   }, [currentWordIndex, words]);
 
-  return <Text fontSize={20}>{displayedText}</Text>;
+  return (
+    <Text fontSize={20} textAlign={"center"}>
+      {displayedText}
+    </Text>
+  );
 };
 
 export default TypingEffect;
