@@ -37,9 +37,9 @@ function App() {
   };
 
   const toast = useToast({ position: "top-right" });
-  const { isOpen, onClose } = useDisclosure({
-    defaultIsOpen: localStorage.getItem("session_id") ? false : true
-  });
+  const [sessionActive, setSessionActive] = useState(false);
+  const [isModalOpen, setModalOpen] = useState(false);
+  const { onClose } = useDisclosure();
   const [answer, setAnswer] = useState("");
   const [keyPresses, setKeyPresses] = useState(initializeKeyPressDict());
   const [backspaceCount, setBackspaceCount] = useState(0);
@@ -54,11 +54,12 @@ function App() {
 
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
 
-  const getQuestion = async (session_id: string) => {
+  const getQuestion = async () => {
     setIsLoadingQuestion(true);
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/${session_id}`
+        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
+        { withCredentials: true }
       );
       localStorage.setItem("question_id", response.data.id);
       setQuestion(response.data.question);
@@ -72,14 +73,36 @@ function App() {
     }
   };
 
-  const getSessionID = async () => {
+  const getSession = async () => {
+    try {
+      await axios.get(`${import.meta.env.VITE_BASE_AXIOS_URL}/session`, {
+        withCredentials: true
+      });
+      onClose();
+      setModalOpen(false);
+      await getQuestion();
+    } catch (e) {
+      if (!(e instanceof AxiosError)) return;
+      toast({
+        title: "Error",
+        description: "Internal server error",
+        status: "error"
+      });
+    }
+  };
+
+  const checkSession = async () => {
     try {
       const response = await axios.get(
-        "${import.meta.env.VITE_BASE_AXIOS_URL}/session"
+        `${import.meta.env.VITE_BASE_AXIOS_URL}/session-check`,
+        { withCredentials: true }
       );
-      localStorage.setItem("session_id", response.data.session_id);
-      onClose();
-      await getQuestion(response.data.session_id as string);
+      if (response.data.session_active) {
+        setSessionActive(true);
+        setModalOpen(false);
+      } else {
+        setModalOpen(true);
+      }
     } catch (e) {
       if (!(e instanceof AxiosError)) return;
       toast({
@@ -132,31 +155,35 @@ function App() {
       const isTablet =
         /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
 
-      await axios.post(`${import.meta.env.VITE_BASE_AXIOS_URL}/chat`, {
-        session_id: localStorage.getItem("session_id"),
-        question_id: localStorage.getItem("question_id"),
-        answer_text: answer,
-        backspace_count: backspaceCount,
-        letter_click_counts: keyPresses,
-        typing_duration: duration,
-        question_presented_at: questionPresented,
-        answer_submitted_at: new Date().toISOString(),
-        total_interaction_time: Math.round(
-          (Date.now() - new Date(questionPresented as string).getTime()) / 1000
-        ),
-        response_type:
-          source === "personal-answer"
-            ? "PERSONAL"
-            : source === "ai-paraphrase"
-              ? "AI_PARAPHRASE"
-              : "FULLY_AI",
-        device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
-      });
+      await axios.post(
+        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
+        {
+          question_id: localStorage.getItem("question_id"),
+          answer_text: answer,
+          backspace_count: backspaceCount,
+          letter_click_counts: keyPresses,
+          typing_duration: duration,
+          question_presented_at: questionPresented,
+          answer_submitted_at: new Date().toISOString(),
+          total_interaction_time: Math.round(
+            (Date.now() - new Date(questionPresented as string).getTime()) /
+              1000
+          ),
+          response_type:
+            source === "personal-answer"
+              ? "PERSONAL"
+              : source === "ai-paraphrase"
+                ? "AI_PARAPHRASE"
+                : "FULLY_AI",
+          device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+        },
+        { withCredentials: true }
+      );
 
       setIsLoadingAnswer(false);
       setQuestion("");
 
-      await getQuestion(localStorage.getItem("session_id") as string);
+      await getQuestion();
     } catch (e) {
       if (!(e instanceof AxiosError)) return;
       toast({ title: "Error", description: "Internal server error" });
@@ -165,11 +192,11 @@ function App() {
   };
 
   useEffect(() => {
-    const session_id = localStorage.getItem("session_id");
-    if (session_id) {
-      getQuestion(session_id as string);
+    checkSession();
+    if (sessionActive) {
+      getQuestion();
     }
-  }, []);
+  }, [sessionActive]);
 
   useEffect(() => {
     if (answer.length > 0 && !isTyping) {
@@ -306,7 +333,7 @@ function App() {
         </Flex>
       </VStack>
       <Modal
-        isOpen={isOpen}
+        isOpen={isModalOpen}
         onClose={onClose}
         isCentered
         size={"2xl"}
@@ -342,7 +369,7 @@ function App() {
             </Stack>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={() => getSessionID()} bgColor={"button"}>
+            <Button onClick={() => getSession()} bgColor={"button"}>
               Saya sudah membaca
             </Button>
           </ModalFooter>

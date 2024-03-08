@@ -1,8 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Session, UserResponse
-from .serializers import SessionSerializer, UserResponseSerializer
+from .models import UserResponse
+from django.contrib.sessions.models import Session
+from .serializers import UserResponseSerializer
 from langchain_core.prompts import SystemMessagePromptTemplate, ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from datetime import datetime
@@ -11,12 +12,23 @@ from datetime import datetime
 
 class SessionAPIView(APIView):
     def get(self, request):
-        session = Session.objects.create()
-        return Response({"session_id": session.session_id}, status=status.HTTP_201_CREATED)
+        if not request.session.exists(request.session.session_key):
+            request.session.create()
 
-class ChatQuestionAPIView(APIView):
-    def get(self, request, session_id):
-        session = Session.objects.get(session_id=session_id)
+        return Response(status=status.HTTP_200_OK)
+    
+class SessionCheckAPIView(APIView):
+    def get(self, request):
+        if not request.session.exists(request.session.session_key):
+            # No active session
+            return Response({ "session_active": False }, status=status.HTTP_200_OK)
+        # Active session
+        return Response({ "session_active": True }, status=status.HTTP_200_OK)
+    
+class ChatAPIView(APIView):
+    def get(self, request):
+        session_key = request.session.session_key
+        session = Session.objects.get(session_key=session_key)
         previous_responses = UserResponse.objects.filter(session=session)
         serializer = UserResponseSerializer(previous_responses, many=True)
 
@@ -54,12 +66,11 @@ class ChatQuestionAPIView(APIView):
 
         return Response({ "id": new_question.id , "question": question }, status=status.HTTP_200_OK)
     
-class ChatAnswerAPIView(APIView):
     def post(self, request):
-        session_id = request.data.pop("session_id")
         question_id = request.data.pop("question_id")
 
-        session = Session.objects.get(session_id=session_id)
+        session_key = request.session.session_key
+        session = Session.objects.get(session_key=session_key)
         response = UserResponse.objects.get(id=question_id, session=session)
 
         response.answer_text = request.data.get("answer_text")

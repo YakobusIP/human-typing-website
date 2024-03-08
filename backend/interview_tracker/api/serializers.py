@@ -1,13 +1,6 @@
 from rest_framework import serializers
 from .models import Session, UserResponse
 
-
-class SessionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Session
-        fields = ["id", "session_id"]
-
-
 class UserResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserResponse

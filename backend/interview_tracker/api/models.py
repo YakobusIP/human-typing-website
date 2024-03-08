@@ -1,11 +1,6 @@
 from django.db import models
+from django.contrib.sessions.models import Session
 import uuid
-
-
-class Session(models.Model):
-    session_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
 
 class UserResponse(models.Model):
     class ResponseType(models.TextChoices):
