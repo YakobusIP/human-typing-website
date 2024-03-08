@@ -29,10 +29,11 @@ SECRET_KEY = 'django-insecure-ct)5+s3o7(%j#x4jq2i2u99fpewi%ygn7!99mja()*uu2$9g9d
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'interview-answer-tracker.netlify.app']
+ALLOWED_HOSTS = ['*']
 
+CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = ['http://localhost:5173', 'https://interview-answer-tracker.netlify.app']
+CORS_ALLOWED_ORIGINS = ['*']
 
 APPEND_SLASH = False
 
