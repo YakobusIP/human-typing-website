@@ -61,7 +61,7 @@ class ChatAPIView(APIView):
             """
             You are an interviewer who is interested in the candidate. 
             You will generate an interview question without access to the candidate's resume and their previous answer. 
-            Start shallow before going deeper.
+            Use simple English accustomed to a foreigner.
             These are the previous questions that has been asked: {previous_questions}. 
             Generate a new question without numberings.
             """
@@ -123,7 +123,7 @@ class ChatSamsungInternetGetAPIView(APIView):
             """
             You are an interviewer who is interested in the candidate. 
             You will generate an interview question without access to the candidate's resume and their previous answer. 
-            Start shallow before going deeper.
+            Use simple English accustomed to a foreigner.
             These are the previous questions that has been asked: {previous_questions}. 
             Generate a new question without numberings.
             """

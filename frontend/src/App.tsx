@@ -393,7 +393,8 @@ function App() {
               <Divider />
               <VStack w={"full"} spacing={4}>
                 <Text fontSize={18}>
-                  Silahkan jawab pertanyaan di bawah ini:
+                  Silahkan jawab pertanyaan wawancara dari seorang HRD di bawah
+                  ini, asumsikan bahwa Anda adalah seorang kandidat:
                 </Text>
                 {isLoadingQuestion ? (
                   <HStack>
