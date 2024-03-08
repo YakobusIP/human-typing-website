@@ -48,6 +48,8 @@ function App() {
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  const [isLoadingAgree, setIsLoadingAgree] = useState(false);
+
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const [questionPresented, setQuestionPresented] = useState<string>();
   const [question, setQuestion] = useState("");
@@ -74,6 +76,7 @@ function App() {
   };
 
   const getSession = async () => {
+    setIsLoadingAgree(true);
     try {
       await axios.get(`${import.meta.env.VITE_BASE_AXIOS_URL}/session`, {
         withCredentials: true
@@ -81,6 +84,7 @@ function App() {
       onClose();
       setModalOpen(false);
       await getQuestion();
+      setIsLoadingAgree(false);
     } catch (e) {
       if (!(e instanceof AxiosError)) return;
       toast({
@@ -88,6 +92,7 @@ function App() {
         description: "Internal server error",
         status: "error"
       });
+      setIsLoadingAgree(false);
     }
   };
 
@@ -369,7 +374,12 @@ function App() {
             </Stack>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={() => getSession()} bgColor={"button"}>
+            <Button
+              onClick={() => getSession()}
+              bgColor={"button"}
+              isLoading={isLoadingAgree}
+              loadingText="Loading..."
+            >
               Saya sudah membaca
             </Button>
           </ModalFooter>

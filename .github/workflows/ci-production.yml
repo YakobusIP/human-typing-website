@@ -39,6 +39,7 @@ jobs:
           gcloud run deploy interview-tracker-be \
             --image ${{ secrets.GCP_REPO_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/interview-tracker-repo/interview-tracker-be:latest \
             --platform managed \
+            --memory 1G \
             --region ${{ secrets.GCP_CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
             --set-env-vars OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
