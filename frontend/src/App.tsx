@@ -288,7 +288,8 @@ function App() {
                 </Text>
                 <Text fontSize={18}>
                   4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
-                  <strong>Anda boleh berhenti kapan saja</strong>
+                  <strong>Anda boleh berhenti kapan saja</strong>. Terima kasih
+                  sudah berpartisipasi
                 </Text>
               </VStack>
               <Divider />
