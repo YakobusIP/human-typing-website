@@ -144,6 +144,13 @@ function App() {
     }
   };
 
+  const handleFocus = () => {
+    if (!isTyping) {
+      setStartTime(Date.now());
+      setIsTyping(true);
+    }
+  };
+
   const handleCopyPaste = (event: BaseSyntheticEvent) => {
     event.preventDefault();
     toast({
@@ -312,6 +319,7 @@ function App() {
                   onChange={(e) => setAnswer(e.target.value)}
                   onKeyDown={handleKeyPress}
                   onBlur={handleBlur}
+                  onFocus={handleFocus}
                   onCopy={handleCopyPaste}
                   onPaste={handleCopyPaste}
                 />
