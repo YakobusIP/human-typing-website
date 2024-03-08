@@ -48,6 +48,7 @@ function App() {
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  const [isLoadingCheckSession, setIsLoadingCheckSession] = useState(false);
   const [isLoadingAgree, setIsLoadingAgree] = useState(false);
 
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
@@ -97,6 +98,7 @@ function App() {
   };
 
   const checkSession = async () => {
+    setIsLoadingCheckSession(true);
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_BASE_AXIOS_URL}/session-check`,
@@ -108,6 +110,7 @@ function App() {
       } else {
         setModalOpen(true);
       }
+      setIsLoadingCheckSession(false);
     } catch (e) {
       if (!(e instanceof AxiosError)) return;
       toast({
@@ -115,6 +118,7 @@ function App() {
         description: "Internal server error",
         status: "error"
       });
+      setIsLoadingCheckSession(false);
     }
   };
 
@@ -227,115 +231,140 @@ function App() {
           <Heading>Interview Answer Tracker</Heading>
           <Text fontSize={12}>by Yakobus Iryanto Prasethio</Text>
         </VStack>
-        <Flex
-          grow={1}
-          w={"full"}
-          alignItems={"center"}
-          direction={"column"}
-          p={8}
-        >
-          <VStack spacing={{ base: 8, lg: 8 }} w={{ base: "full", lg: "60%" }}>
-            <VStack spacing={4}>
-              <Heading fontSize={30}>
-                Beberapa informasi mengenai pertanyaan dan jawaban:
-              </Heading>
-              <Text fontSize={18}>
-                1. Pertanyaan akan disajikan dalam{" "}
-                <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
-                menggunakan <strong>Bahasa Inggris</strong>
-              </Text>
-              <Text fontSize={18}>
-                2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
-                atau menggunakan LLM seperti ChatGPT
-              </Text>
-              <Text fontSize={18}>
-                3. Setelah menjawab pertanyaan, pilih salah satu sumber jawaban
-                dan tekan submit
-              </Text>
-              <Text fontSize={18}>
-                4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
-                <strong>Anda boleh berhenti kapan saja</strong>
-              </Text>
-            </VStack>
-            <Divider />
-            <VStack w={"full"} spacing={4}>
-              <Text fontSize={18}>Silahkan jawab pertanyaan di bawah ini:</Text>
-              {isLoadingQuestion ? (
-                <HStack>
-                  <Spinner
-                    thickness="4px"
-                    speed="0.65s"
-                    emptyColor="gray.200"
-                    color="blue.500"
-                  />
-                  <Text fontSize={20}>Generating question...</Text>
-                </HStack>
-              ) : (
-                <Text fontSize={20}>{question}</Text>
-              )}
+        {isLoadingCheckSession ? (
+          <Flex
+            grow={1}
+            w={"full"}
+            alignItems={"center"}
+            justifyContent={"center"}
+            direction={"column"}
+            rowGap={4}
+          >
+            <Spinner
+              thickness="4px"
+              speed="0.65s"
+              emptyColor="gray.200"
+              color="blue.500"
+              size={"xl"}
+            />
+            <Text fontSize={20}>Loading... Please wait</Text>
+          </Flex>
+        ) : (
+          <Flex
+            grow={1}
+            w={"full"}
+            alignItems={"center"}
+            direction={"column"}
+            p={8}
+          >
+            <VStack
+              spacing={{ base: 8, lg: 8 }}
+              w={{ base: "full", lg: "60%" }}
+            >
+              <VStack spacing={4}>
+                <Heading fontSize={30}>
+                  Beberapa informasi mengenai pertanyaan dan jawaban:
+                </Heading>
+                <Text fontSize={18}>
+                  1. Pertanyaan akan disajikan dalam{" "}
+                  <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
+                  menggunakan <strong>Bahasa Inggris</strong>
+                </Text>
+                <Text fontSize={18}>
+                  2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
+                  atau menggunakan LLM seperti ChatGPT
+                </Text>
+                <Text fontSize={18}>
+                  3. Setelah menjawab pertanyaan, pilih salah satu sumber
+                  jawaban dan tekan submit
+                </Text>
+                <Text fontSize={18}>
+                  4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
+                  <strong>Anda boleh berhenti kapan saja</strong>
+                </Text>
+              </VStack>
+              <Divider />
+              <VStack w={"full"} spacing={4}>
+                <Text fontSize={18}>
+                  Silahkan jawab pertanyaan di bawah ini:
+                </Text>
+                {isLoadingQuestion ? (
+                  <HStack>
+                    <Spinner
+                      thickness="4px"
+                      speed="0.65s"
+                      emptyColor="gray.200"
+                      color="blue.500"
+                    />
+                    <Text fontSize={20}>Generating question...</Text>
+                  </HStack>
+                ) : (
+                  <Text fontSize={20}>{question}</Text>
+                )}
 
-              <Textarea
-                value={answer}
-                rows={5}
-                width={"full"}
-                placeholder="Silahkan jawab disini"
-                resize={"none"}
-                onChange={(e) => setAnswer(e.target.value)}
-                onKeyDown={handleKeyPress}
-                onBlur={handleBlur}
-                onCopy={handleCopyPaste}
-                onPaste={handleCopyPaste}
-              />
-              <Text fontSize={18}>
-                Silahkan pilih salah satu sumber jawaban
+                <Textarea
+                  value={answer}
+                  rows={5}
+                  width={"full"}
+                  placeholder="Silahkan jawab disini"
+                  resize={"none"}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  onBlur={handleBlur}
+                  onCopy={handleCopyPaste}
+                  onPaste={handleCopyPaste}
+                />
+                <Text fontSize={18}>
+                  Silahkan pilih salah satu sumber jawaban
+                </Text>
+                <Stack
+                  direction={{ base: "column", lg: "row" }}
+                  spacing={4}
+                  w={"80%"}
+                >
+                  <Button
+                    w={"full"}
+                    onClick={() => setSource("personal-answer")}
+                    bgColor={source == "personal-answer" ? "button" : undefined}
+                  >
+                    Sumber jawaban sendiri
+                  </Button>
+                  <Button
+                    w={"full"}
+                    onClick={() => setSource("fully-ai")}
+                    bgColor={source == "fully-ai" ? "button" : undefined}
+                  >
+                    Sumber jawaban sebagian AI
+                  </Button>
+                  <Button
+                    w={"full"}
+                    onClick={() => setSource("ai-paraphrase")}
+                    bgColor={source == "ai-paraphrase" ? "button" : undefined}
+                  >
+                    Sumber jawaban seluruhnya AI
+                  </Button>
+                </Stack>
+                <Button
+                  bgColor={"button"}
+                  w={"25%"}
+                  isDisabled={
+                    !source || answer.length === 0 || question.length === 0
+                  }
+                  isLoading={isLoadingAnswer}
+                  loadingText="Loading..."
+                  onClick={() => sendAnswer()}
+                >
+                  Submit
+                </Button>
+              </VStack>
+              <Text>
+                Apabila ada pertanyaan, silahkan kontak saya lewat ID Line{" "}
+                <strong>kobusryan</strong> atau nomor Whatsapp{" "}
+                <strong>08987481816</strong>. Terima kasih.
               </Text>
-              <Stack
-                direction={{ base: "column", lg: "row" }}
-                spacing={4}
-                w={"80%"}
-              >
-                <Button
-                  w={"full"}
-                  onClick={() => setSource("personal-answer")}
-                  bgColor={source == "personal-answer" ? "button" : undefined}
-                >
-                  Sumber jawaban sendiri
-                </Button>
-                <Button
-                  w={"full"}
-                  onClick={() => setSource("fully-ai")}
-                  bgColor={source == "fully-ai" ? "button" : undefined}
-                >
-                  Sumber jawaban sebagian AI
-                </Button>
-                <Button
-                  w={"full"}
-                  onClick={() => setSource("ai-paraphrase")}
-                  bgColor={source == "ai-paraphrase" ? "button" : undefined}
-                >
-                  Sumber jawaban seluruhnya AI
-                </Button>
-              </Stack>
-              <Button
-                bgColor={"button"}
-                w={"25%"}
-                isDisabled={
-                  !source || answer.length === 0 || question.length === 0
-                }
-                isLoading={isLoadingAnswer}
-                loadingText="Loading..."
-                onClick={() => sendAnswer()}
-              >
-                Submit
-              </Button>
             </VStack>
-            <Text>
-              Apabila ada pertanyaan, silahkan kontak saya lewat ID Line{" "}
-              <strong>kobusryan</strong> atau nomor Whatsapp{" "}
-              <strong>08987481816</strong>. Terima kasih.
-            </Text>
-          </VStack>
-        </Flex>
+          </Flex>
+        )}
       </VStack>
       <Modal
         isOpen={isModalOpen}
