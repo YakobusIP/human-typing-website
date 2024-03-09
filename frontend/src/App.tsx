@@ -289,7 +289,7 @@ function App() {
                 <Stack
                   direction={{ base: "column", "2xl": "row" }}
                   spacing={4}
-                  w={"80%"}
+                  w={{ base: "full", lg: "80%" }}
                 >
                   <Button
                     w={"full"}
@@ -315,7 +315,7 @@ function App() {
                 </Stack>
                 <Button
                   bgColor={"button"}
-                  w={"25%"}
+                  w={{ base: "full", lg: "25%" }}
                   isDisabled={
                     !source || answer.length === 0 || question.length === 0
                   }

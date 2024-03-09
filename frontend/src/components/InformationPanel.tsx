@@ -10,7 +10,7 @@ export function InformationPanel() {
         1. Pertanyaan akan disajikan dalam <strong>Bahasa Inggris</strong> dan
         jawaban Anda perlu menggunakan <strong>Bahasa Inggris</strong>
       </Text>
-      <Text fontSize={18} textAlign={"center"}>
+      <Text fontSize={18}>
         2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi atau
         menggunakan LLM seperti ChatGPT
       </Text>
