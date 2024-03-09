@@ -23,6 +23,7 @@ import {
   useToast
 } from "@chakra-ui/react";
 import axios, { AxiosError } from "axios";
+import TypingEffect from "@/components/TypingText";
 
 type KeyPresses = {
   [key: string]: number;
@@ -37,9 +38,9 @@ function App() {
   };
 
   const toast = useToast({ position: "top-right" });
-  const { isOpen, onClose } = useDisclosure({
-    defaultIsOpen: localStorage.getItem("session_id") ? false : true
-  });
+  const [sessionActive, setSessionActive] = useState(false);
+  const [isModalOpen, setModalOpen] = useState(false);
+  const { onClose } = useDisclosure();
   const [answer, setAnswer] = useState("");
   const [keyPresses, setKeyPresses] = useState(initializeKeyPressDict());
   const [backspaceCount, setBackspaceCount] = useState(0);
@@ -48,38 +49,110 @@ function App() {
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  const [isLoadingCheckSession, setIsLoadingCheckSession] = useState(false);
+  const [isLoadingAgree, setIsLoadingAgree] = useState(false);
+
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const [questionPresented, setQuestionPresented] = useState<string>();
   const [question, setQuestion] = useState("");
 
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
 
-  const getQuestion = async (session_id: string) => {
+  const getQuestion = async () => {
     setIsLoadingQuestion(true);
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/${session_id}`
-      );
-      localStorage.setItem("question_id", response.data.id);
-      setQuestion(response.data.question);
-      setQuestionPresented(new Date().toISOString());
-      setAnswer("");
-      setIsLoadingQuestion(false);
-    } catch (e) {
-      if (!(e instanceof AxiosError)) return;
-      toast({ title: "Error", description: "Internal server error" });
-      setIsLoadingQuestion(false);
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/samsung/${localStorage.getItem("session_key")}`
+        );
+        localStorage.setItem("question_id", response.data.id);
+        setQuestion(response.data.question);
+        setQuestionPresented(new Date().toISOString());
+        setAnswer("");
+        setIsLoadingQuestion(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setQuestion("Failed to generate question due to browser issues");
+        setIsLoadingQuestion(false);
+      }
+    } else {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
+          { withCredentials: true }
+        );
+        localStorage.setItem("question_id", response.data.id);
+        setQuestion(response.data.question);
+        setQuestionPresented(new Date().toISOString());
+        setAnswer("");
+        setIsLoadingQuestion(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setQuestion("Failed to generate question due to browser issues");
+        setIsLoadingQuestion(false);
+      }
     }
   };
 
-  const getSessionID = async () => {
+  const getSession = async () => {
+    setIsLoadingAgree(true);
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/session/samsung/${localStorage.getItem("session_key")}`
+        );
+
+        localStorage.setItem("session_key", response.data.session_key);
+        onClose();
+        setModalOpen(false);
+        await getQuestion();
+        setIsLoadingAgree(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({
+          title: "Error",
+          description: "Internal server error",
+          status: "error"
+        });
+        setIsLoadingAgree(false);
+      }
+    } else {
+      try {
+        await axios.get(`${import.meta.env.VITE_BASE_AXIOS_URL}/session`, {
+          withCredentials: true
+        });
+        onClose();
+        setModalOpen(false);
+        await getQuestion();
+        setIsLoadingAgree(false);
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({
+          title: "Error",
+          description: "Internal server error",
+          status: "error"
+        });
+        setIsLoadingAgree(false);
+      }
+    }
+  };
+
+  const checkSession = async () => {
+    setIsLoadingCheckSession(true);
     try {
       const response = await axios.get(
-        "${import.meta.env.VITE_BASE_AXIOS_URL}/session"
+        `${import.meta.env.VITE_BASE_AXIOS_URL}/session-check`,
+        { withCredentials: true }
       );
-      localStorage.setItem("session_id", response.data.session_id);
-      onClose();
-      await getQuestion(response.data.session_id as string);
+      if (response.data.session_active) {
+        setSessionActive(true);
+        setModalOpen(false);
+      } else {
+        setModalOpen(true);
+      }
+      setIsLoadingCheckSession(false);
     } catch (e) {
       if (!(e instanceof AxiosError)) return;
       toast({
@@ -87,6 +160,7 @@ function App() {
         description: "Internal server error",
         status: "error"
       });
+      setIsLoadingCheckSession(false);
     }
   };
 
@@ -111,6 +185,13 @@ function App() {
     }
   };
 
+  const handleFocus = () => {
+    if (!isTyping) {
+      setStartTime(Date.now());
+      setIsTyping(true);
+    }
+  };
+
   const handleCopyPaste = (event: BaseSyntheticEvent) => {
     event.preventDefault();
     toast({
@@ -122,54 +203,115 @@ function App() {
 
   const sendAnswer = async () => {
     setIsLoadingAnswer(true);
-    try {
-      const userAgent = navigator.userAgent;
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      try {
+        const userAgent = navigator.userAgent;
 
-      const isMobile =
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          userAgent
+        const isMobile =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            userAgent
+          );
+        const isTablet =
+          /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+
+        await axios.post(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/samsung`,
+          {
+            session_key: localStorage.getItem("session_key"),
+            question_id: localStorage.getItem("question_id"),
+            answer_text: answer,
+            backspace_count: backspaceCount,
+            letter_click_counts: keyPresses,
+            typing_duration: duration,
+            question_presented_at: questionPresented,
+            answer_submitted_at: new Date().toISOString(),
+            total_interaction_time: Math.round(
+              (Date.now() - new Date(questionPresented as string).getTime()) /
+                1000
+            ),
+            response_type:
+              source === "personal-answer"
+                ? "PERSONAL"
+                : source === "ai-paraphrase"
+                  ? "AI_PARAPHRASE"
+                  : "FULLY_AI",
+            device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+          },
+          { withCredentials: true }
         );
-      const isTablet =
-        /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
 
-      await axios.post(`${import.meta.env.VITE_BASE_AXIOS_URL}/chat`, {
-        session_id: localStorage.getItem("session_id"),
-        question_id: localStorage.getItem("question_id"),
-        answer_text: answer,
-        backspace_count: backspaceCount,
-        letter_click_counts: keyPresses,
-        typing_duration: duration,
-        question_presented_at: questionPresented,
-        answer_submitted_at: new Date().toISOString(),
-        total_interaction_time: Math.round(
-          (Date.now() - new Date(questionPresented as string).getTime()) / 1000
-        ),
-        response_type:
-          source === "personal-answer"
-            ? "PERSONAL"
-            : source === "ai-paraphrase"
-              ? "AI_PARAPHRASE"
-              : "FULLY_AI",
-        device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
-      });
+        setIsLoadingAnswer(false);
+        setQuestion("");
 
-      setIsLoadingAnswer(false);
-      setQuestion("");
+        await getQuestion();
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setIsLoadingAnswer(false);
+      }
+    } else {
+      try {
+        const userAgent = navigator.userAgent;
 
-      await getQuestion(localStorage.getItem("session_id") as string);
-    } catch (e) {
-      if (!(e instanceof AxiosError)) return;
-      toast({ title: "Error", description: "Internal server error" });
-      setIsLoadingAnswer(false);
+        const isMobile =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            userAgent
+          );
+        const isTablet =
+          /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+
+        await axios.post(
+          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
+          {
+            question_id: localStorage.getItem("question_id"),
+            answer_text: answer,
+            backspace_count: backspaceCount,
+            letter_click_counts: keyPresses,
+            typing_duration: duration,
+            question_presented_at: questionPresented,
+            answer_submitted_at: new Date().toISOString(),
+            total_interaction_time: Math.round(
+              (Date.now() - new Date(questionPresented as string).getTime()) /
+                1000
+            ),
+            response_type:
+              source === "personal-answer"
+                ? "PERSONAL"
+                : source === "ai-paraphrase"
+                  ? "AI_PARAPHRASE"
+                  : "FULLY_AI",
+            device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+          },
+          { withCredentials: true }
+        );
+
+        setIsLoadingAnswer(false);
+        setQuestion("");
+
+        await getQuestion();
+      } catch (e) {
+        if (!(e instanceof AxiosError)) return;
+        toast({ title: "Error", description: "Internal server error" });
+        setIsLoadingAnswer(false);
+      }
     }
   };
 
   useEffect(() => {
-    const session_id = localStorage.getItem("session_id");
-    if (session_id) {
-      getQuestion(session_id as string);
+    if (/samsungbrowser/i.test(navigator.userAgent)) {
+      if (localStorage.getItem("session_key")) {
+        setSessionActive(true);
+        setModalOpen(false);
+      } else {
+        setModalOpen(true);
+      }
+    } else {
+      checkSession();
     }
-  }, []);
+    if (sessionActive) {
+      getQuestion();
+    }
+  }, [sessionActive]);
 
   useEffect(() => {
     if (answer.length > 0 && !isTyping) {
@@ -195,111 +337,146 @@ function App() {
           <Heading>Interview Answer Tracker</Heading>
           <Text fontSize={12}>by Yakobus Iryanto Prasethio</Text>
         </VStack>
-        <Flex
-          grow={1}
-          w={"full"}
-          alignItems={"center"}
-          direction={"column"}
-          p={8}
-        >
-          <VStack spacing={{ base: 8, lg: 8 }} w={{ base: "full", lg: "60%" }}>
-            <VStack spacing={4}>
-              <Text fontSize={18}>
-                Beberapa informasi mengenai pertanyaan dan jawaban:
-              </Text>
-              <Text fontSize={18}>
-                1. Pertanyaan akan disajikan dalam{" "}
-                <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
-                menggunakan <strong>Bahasa Inggris</strong>
-              </Text>
-              <Text fontSize={18}>
-                2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
-                atau menggunakan LLM seperti ChatGPT
-              </Text>
-              <Text fontSize={18}>
-                3. Setelah menjawab pertanyaan, pilih salah satu sumber jawaban
-                dan tekan submit
-              </Text>
-              <Text fontSize={18}>
-                4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
-                <strong>Anda boleh berhenti kapan saja</strong>
-              </Text>
-            </VStack>
-            <Divider />
-            <VStack w={"full"} spacing={4}>
-              <Text fontSize={18}>Silahkan jawab pertanyaan di bawah ini:</Text>
-              {isLoadingQuestion ? (
-                <HStack>
-                  <Spinner
-                    thickness="4px"
-                    speed="0.65s"
-                    emptyColor="gray.200"
-                    color="blue.500"
-                  />
-                  <Text fontSize={20}>Generating question...</Text>
-                </HStack>
-              ) : (
-                <Text fontSize={20}>{question}</Text>
-              )}
+        {isLoadingCheckSession ? (
+          <Flex
+            grow={1}
+            w={"full"}
+            alignItems={"center"}
+            justifyContent={"center"}
+            direction={"column"}
+            rowGap={4}
+          >
+            <Spinner
+              thickness="4px"
+              speed="0.65s"
+              emptyColor="gray.200"
+              color="blue.500"
+              size={"xl"}
+            />
+            <Text fontSize={20}>Loading... Please wait</Text>
+          </Flex>
+        ) : (
+          <Flex
+            grow={1}
+            w={"full"}
+            alignItems={"center"}
+            direction={"column"}
+            p={8}
+          >
+            <VStack
+              spacing={{ base: 8, lg: 8 }}
+              w={{ base: "full", lg: "60%" }}
+            >
+              <VStack spacing={4}>
+                <Heading fontSize={30}>
+                  Beberapa informasi mengenai pertanyaan dan jawaban:
+                </Heading>
+                <Text fontSize={18}>
+                  1. Pertanyaan akan disajikan dalam{" "}
+                  <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
+                  menggunakan <strong>Bahasa Inggris</strong>
+                </Text>
+                <Text fontSize={18} textAlign={"center"}>
+                  2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
+                  atau menggunakan LLM seperti ChatGPT
+                </Text>
+                <Text fontSize={18}>
+                  3. Setelah menjawab pertanyaan, pilih salah satu sumber
+                  jawaban dan tekan submit
+                </Text>
+                <Text fontSize={18}>
+                  4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
+                  <strong>Anda boleh berhenti kapan saja</strong>. Terima kasih
+                  sudah berpartisipasi
+                </Text>
+              </VStack>
+              <Divider />
+              <VStack w={"full"} spacing={4}>
+                <Text fontSize={18}>
+                  Silahkan jawab pertanyaan wawancara dari seorang HRD di bawah
+                  ini, asumsikan bahwa Anda adalah seorang kandidat:
+                </Text>
+                {isLoadingQuestion ? (
+                  <HStack>
+                    <Spinner
+                      thickness="4px"
+                      speed="0.65s"
+                      emptyColor="gray.200"
+                      color="blue.500"
+                    />
+                    <Text fontSize={20}>Generating question...</Text>
+                  </HStack>
+                ) : (
+                  <TypingEffect text={question} />
+                )}
 
-              <Textarea
-                value={answer}
-                rows={5}
-                width={"full"}
-                placeholder="Silahkan jawab disini"
-                resize={"none"}
-                onChange={(e) => setAnswer(e.target.value)}
-                onKeyDown={handleKeyPress}
-                onBlur={handleBlur}
-                onCopy={handleCopyPaste}
-                onPaste={handleCopyPaste}
-              />
-              <Text fontSize={18}>
-                Silahkan pilih salah satu sumber jawaban
+                <Textarea
+                  value={answer}
+                  rows={5}
+                  width={"full"}
+                  placeholder="Silahkan jawab disini"
+                  resize={"none"}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  onBlur={handleBlur}
+                  onFocus={handleFocus}
+                  onCopy={handleCopyPaste}
+                  onPaste={handleCopyPaste}
+                />
+                <Text fontSize={18}>
+                  Silahkan pilih salah satu sumber jawaban
+                </Text>
+                <Stack
+                  direction={{ base: "column", "2xl": "row" }}
+                  spacing={4}
+                  w={"80%"}
+                >
+                  <Button
+                    w={"full"}
+                    onClick={() => setSource("personal-answer")}
+                    bgColor={source == "personal-answer" ? "button" : undefined}
+                  >
+                    Sumber jawaban sendiri
+                  </Button>
+                  <Button
+                    w={"full"}
+                    onClick={() => setSource("fully-ai")}
+                    bgColor={source == "fully-ai" ? "button" : undefined}
+                  >
+                    Sumber jawaban sebagian AI
+                  </Button>
+                  <Button
+                    w={"full"}
+                    onClick={() => setSource("ai-paraphrase")}
+                    bgColor={source == "ai-paraphrase" ? "button" : undefined}
+                  >
+                    Sumber jawaban seluruhnya AI
+                  </Button>
+                </Stack>
+                <Button
+                  bgColor={"button"}
+                  w={"25%"}
+                  isDisabled={
+                    !source || answer.length === 0 || question.length === 0
+                  }
+                  isLoading={isLoadingAnswer}
+                  loadingText="Loading..."
+                  onClick={() => sendAnswer()}
+                >
+                  Submit
+                </Button>
+              </VStack>
+              <Text>
+                Apabila ada pertanyaan, silahkan kontak saya lewat ID Line{" "}
+                <strong>kobusryan</strong> atau nomor Whatsapp{" "}
+                <strong>08987481816</strong>. Terima kasih.
               </Text>
-              <Stack
-                direction={{ base: "column", lg: "row" }}
-                spacing={4}
-                w={"80%"}
-              >
-                <Button
-                  w={"full"}
-                  onClick={() => setSource("personal-answer")}
-                  bgColor={source == "personal-answer" ? "button" : undefined}
-                >
-                  Sumber jawaban sendiri
-                </Button>
-                <Button
-                  w={"full"}
-                  onClick={() => setSource("fully-ai")}
-                  bgColor={source == "fully-ai" ? "button" : undefined}
-                >
-                  Sumber jawaban sebagian AI
-                </Button>
-                <Button
-                  w={"full"}
-                  onClick={() => setSource("ai-paraphrase")}
-                  bgColor={source == "ai-paraphrase" ? "button" : undefined}
-                >
-                  Sumber jawaban seluruhnya AI
-                </Button>
-              </Stack>
-              <Button
-                bgColor={"button"}
-                w={"25%"}
-                isDisabled={!source || answer.length === 0}
-                isLoading={isLoadingAnswer}
-                loadingText="Loading..."
-                onClick={() => sendAnswer()}
-              >
-                Submit
-              </Button>
             </VStack>
-          </VStack>
-        </Flex>
+          </Flex>
+        )}
       </VStack>
       <Modal
-        isOpen={isOpen}
+        isOpen={isModalOpen}
         onClose={onClose}
         isCentered
         size={"2xl"}
@@ -330,12 +507,18 @@ function App() {
                 </ListItem>
               </OrderedList>
               <Text fontWeight={700}>
-                Terima kasih telah berkontribusi pada penelitian saya.
+                Terima kasih telah berkontribusi pada penelitian saya. Harap
+                menggunakan browser Chrome.
               </Text>
             </Stack>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={() => getSessionID()} bgColor={"button"}>
+            <Button
+              onClick={() => getSession()}
+              bgColor={"button"}
+              isLoading={isLoadingAgree}
+              loadingText="Loading..."
+            >
               Saya sudah membaca
             </Button>
           </ModalFooter>

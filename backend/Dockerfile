@@ -12,13 +12,7 @@ WORKDIR /app
 RUN apk update \
     # psycopg2 dependencies
     && apk add --virtual build-deps gcc python3-dev musl-dev \
-    && apk add postgresql-dev \
-    # Translations dependencies
-    && apk add gettext \
-    # Pillow dependencies
-    && apk add jpeg-dev zlib-dev libjpeg \
-    # CFFI dependencies
-    && apk add libffi-dev py-cffi
+    && apk add postgresql-dev
 
 # Install Python dependencies
 COPY requirements.txt /app/
@@ -28,4 +22,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Run the application
-CMD gunicorn interview_tracker.wsgi:application --bind 0.0.0.0:$PORT
+CMD cd ./interview_tracker && gunicorn interview_tracker.wsgi:application --bind 0.0.0.0:$PORT
