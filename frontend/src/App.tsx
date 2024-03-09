@@ -5,15 +5,6 @@ import {
   Divider,
   Flex,
   HStack,
-  Heading,
-  ListItem,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  OrderedList,
   Spinner,
   Stack,
   Text,
@@ -22,8 +13,14 @@ import {
   useDisclosure,
   useToast
 } from "@chakra-ui/react";
-import axios, { AxiosError } from "axios";
 import TypingEffect from "@/components/TypingText";
+import { useSession } from "./hooks/useSession";
+import { ModalAgree } from "./components/ModalAgree";
+import { InformationPanel } from "./components/InformationPanel";
+import { useQuestion } from "./hooks/useQuestion";
+import { Navbar } from "./components/Navbar";
+import { useAnswer } from "./hooks/useAnswer";
+import { ModalTopic } from "./components/ModalTopic";
 
 type KeyPresses = {
   [key: string]: number;
@@ -38,130 +35,50 @@ function App() {
   };
 
   const toast = useToast({ position: "top-right" });
-  const [sessionActive, setSessionActive] = useState(false);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const { onClose } = useDisclosure();
-  const [answer, setAnswer] = useState("");
+
+  const [isModalTopicOpen, setModalTopicOpen] = useState(false);
+
+  // Custom hooks
+  const {
+    sessionActive,
+    getSession,
+    isLoadingGetSession,
+    isLoadingCheckSession,
+    errorGetSession,
+    errorCheckSession
+  } = useSession();
+
+  const {
+    question,
+    questionPresented,
+    isLoading: loadingQuestion,
+    error: errorQuestion,
+    fetchQuestion
+  } = useQuestion(sessionActive, isModalTopicOpen);
+
+  const {
+    answer,
+    setAnswer,
+    sendAnswer,
+    isLoading: loadingAnswer,
+    error: errorAnswer
+  } = useAnswer();
+
+  const { onClose: onAgreeModalClose } = useDisclosure();
+  const { onClose: onTopicModalClose } = useDisclosure();
+
+  // Typing metrics state
   const [keyPresses, setKeyPresses] = useState(initializeKeyPressDict());
+  const [lastAnswer, setLastAnswer] = useState("");
   const [backspaceCount, setBackspaceCount] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [source, setSource] = useState<string>();
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  const [isLoadingCheckSession, setIsLoadingCheckSession] = useState(false);
-  const [isLoadingAgree, setIsLoadingAgree] = useState(false);
-
-  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
-  const [questionPresented, setQuestionPresented] = useState<string>();
-  const [question, setQuestion] = useState("");
-
-  const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
-
-  const getQuestion = async () => {
-    setIsLoadingQuestion(true);
-    if (/samsungbrowser/i.test(navigator.userAgent)) {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/samsung/${localStorage.getItem("session_key")}`
-        );
-        localStorage.setItem("question_id", response.data.id);
-        setQuestion(response.data.question);
-        setQuestionPresented(new Date().toISOString());
-        setAnswer("");
-        setIsLoadingQuestion(false);
-      } catch (e) {
-        if (!(e instanceof AxiosError)) return;
-        toast({ title: "Error", description: "Internal server error" });
-        setQuestion("Failed to generate question due to browser issues");
-        setIsLoadingQuestion(false);
-      }
-    } else {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
-          { withCredentials: true }
-        );
-        localStorage.setItem("question_id", response.data.id);
-        setQuestion(response.data.question);
-        setQuestionPresented(new Date().toISOString());
-        setAnswer("");
-        setIsLoadingQuestion(false);
-      } catch (e) {
-        if (!(e instanceof AxiosError)) return;
-        toast({ title: "Error", description: "Internal server error" });
-        setQuestion("Failed to generate question due to browser issues");
-        setIsLoadingQuestion(false);
-      }
-    }
-  };
-
-  const getSession = async () => {
-    setIsLoadingAgree(true);
-    if (/samsungbrowser/i.test(navigator.userAgent)) {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_AXIOS_URL}/session/samsung/${localStorage.getItem("session_key")}`
-        );
-
-        localStorage.setItem("session_key", response.data.session_key);
-        onClose();
-        setModalOpen(false);
-        await getQuestion();
-        setIsLoadingAgree(false);
-      } catch (e) {
-        if (!(e instanceof AxiosError)) return;
-        toast({
-          title: "Error",
-          description: "Internal server error",
-          status: "error"
-        });
-        setIsLoadingAgree(false);
-      }
-    } else {
-      try {
-        await axios.get(`${import.meta.env.VITE_BASE_AXIOS_URL}/session`, {
-          withCredentials: true
-        });
-        onClose();
-        setModalOpen(false);
-        await getQuestion();
-        setIsLoadingAgree(false);
-      } catch (e) {
-        if (!(e instanceof AxiosError)) return;
-        toast({
-          title: "Error",
-          description: "Internal server error",
-          status: "error"
-        });
-        setIsLoadingAgree(false);
-      }
-    }
-  };
-
-  const checkSession = async () => {
-    setIsLoadingCheckSession(true);
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_AXIOS_URL}/session-check`,
-        { withCredentials: true }
-      );
-      if (response.data.session_active) {
-        setSessionActive(true);
-        setModalOpen(false);
-      } else {
-        setModalOpen(true);
-      }
-      setIsLoadingCheckSession(false);
-    } catch (e) {
-      if (!(e instanceof AxiosError)) return;
-      toast({
-        title: "Error",
-        description: "Internal server error",
-        status: "error"
-      });
-      setIsLoadingCheckSession(false);
-    }
+  const handleAgree = async () => {
+    await getSession();
+    setModalTopicOpen(true);
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -174,6 +91,36 @@ function App() {
         [key]: (prevKeyPresses[key] || 0) + 1
       }));
     }
+  };
+
+  const handleOnChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newAnswer = event.target.value;
+    setAnswer(newAnswer);
+
+    const userAgent = navigator.userAgent;
+
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        userAgent
+      );
+    const isTablet =
+      /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+
+    if (isMobile || isTablet) {
+      if (newAnswer.length < lastAnswer.length) {
+        setBackspaceCount(backspaceCount + 1);
+      } else {
+        const addedText = newAnswer.toLowerCase().replace(lastAnswer, "");
+        if (addedText.match(/[a-z]/i)) {
+          setKeyPresses((prevKeyPresses: KeyPresses) => ({
+            ...prevKeyPresses,
+            [addedText]: (prevKeyPresses[addedText] || 0) + 1
+          }));
+        }
+      }
+    }
+
+    setLastAnswer(newAnswer);
   };
 
   const handleBlur = () => {
@@ -201,117 +148,58 @@ function App() {
     });
   };
 
-  const sendAnswer = async () => {
-    setIsLoadingAnswer(true);
-    if (/samsungbrowser/i.test(navigator.userAgent)) {
-      try {
-        const userAgent = navigator.userAgent;
+  const handleSubmit = async () => {
+    const userAgent = navigator.userAgent;
 
-        const isMobile =
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            userAgent
-          );
-        const isTablet =
-          /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        userAgent
+      );
+    const isTablet =
+      /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
 
-        await axios.post(
-          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat/samsung`,
-          {
-            session_key: localStorage.getItem("session_key"),
-            question_id: localStorage.getItem("question_id"),
-            answer_text: answer,
-            backspace_count: backspaceCount,
-            letter_click_counts: keyPresses,
-            typing_duration: duration,
-            question_presented_at: questionPresented,
-            answer_submitted_at: new Date().toISOString(),
-            total_interaction_time: Math.round(
-              (Date.now() - new Date(questionPresented as string).getTime()) /
-                1000
-            ),
-            response_type:
-              source === "personal-answer"
-                ? "PERSONAL"
-                : source === "ai-paraphrase"
-                  ? "AI_PARAPHRASE"
-                  : "FULLY_AI",
-            device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
-          },
-          { withCredentials: true }
-        );
+    const calculateTotalInteractionTime = (questionPresented: string) => {
+      return Math.round(
+        (Date.now() - new Date(questionPresented).getTime()) / 1000
+      );
+    };
 
-        setIsLoadingAnswer(false);
-        setQuestion("");
-
-        await getQuestion();
-      } catch (e) {
-        if (!(e instanceof AxiosError)) return;
-        toast({ title: "Error", description: "Internal server error" });
-        setIsLoadingAnswer(false);
+    const responseTypeMapping = (source: string | undefined) => {
+      switch (source) {
+        case "personal-answer":
+          return "PERSONAL";
+        case "ai-paraphrase":
+          return "AI_PARAPHRASE";
+        case "fully-ai":
+          return "FULLY_AI";
+        default:
+          return "";
       }
-    } else {
-      try {
-        const userAgent = navigator.userAgent;
+    };
 
-        const isMobile =
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            userAgent
-          );
-        const isTablet =
-          /iPad|Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+    await sendAnswer({
+      backspace_count: backspaceCount,
+      letter_click_counts: keyPresses,
+      typing_duration: duration,
+      question_presented_at: questionPresented,
+      answer_submitted_at: new Date().toISOString(),
+      total_interaction_time: calculateTotalInteractionTime(questionPresented),
+      response_type: responseTypeMapping(source),
+      device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
+    });
 
-        await axios.post(
-          `${import.meta.env.VITE_BASE_AXIOS_URL}/chat`,
-          {
-            question_id: localStorage.getItem("question_id"),
-            answer_text: answer,
-            backspace_count: backspaceCount,
-            letter_click_counts: keyPresses,
-            typing_duration: duration,
-            question_presented_at: questionPresented,
-            answer_submitted_at: new Date().toISOString(),
-            total_interaction_time: Math.round(
-              (Date.now() - new Date(questionPresented as string).getTime()) /
-                1000
-            ),
-            response_type:
-              source === "personal-answer"
-                ? "PERSONAL"
-                : source === "ai-paraphrase"
-                  ? "AI_PARAPHRASE"
-                  : "FULLY_AI",
-            device_type: isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP"
-          },
-          { withCredentials: true }
-        );
-
-        setIsLoadingAnswer(false);
-        setQuestion("");
-
-        await getQuestion();
-      } catch (e) {
-        if (!(e instanceof AxiosError)) return;
-        toast({ title: "Error", description: "Internal server error" });
-        setIsLoadingAnswer(false);
-      }
-    }
+    await fetchQuestion();
   };
 
   useEffect(() => {
-    if (/samsungbrowser/i.test(navigator.userAgent)) {
-      if (localStorage.getItem("session_key")) {
-        setSessionActive(true);
-        setModalOpen(false);
-      } else {
-        setModalOpen(true);
-      }
-    } else {
-      checkSession();
+    if (errorCheckSession || errorGetSession || errorAnswer || errorQuestion) {
+      toast({
+        title: "Error",
+        description: "Internal server error",
+        status: "error"
+      });
     }
-    if (sessionActive) {
-      getQuestion();
-    }
-  }, [sessionActive]);
+  }, [errorCheckSession, errorGetSession, errorAnswer, errorQuestion]);
 
   useEffect(() => {
     if (answer.length > 0 && !isTyping) {
@@ -323,20 +211,7 @@ function App() {
   return (
     <>
       <VStack bgColor={"main"} position={"relative"} minH={"100vh"}>
-        <VStack
-          bgColor={"navbar"}
-          top={0}
-          position={"sticky"}
-          w={"full"}
-          alignItems={"center"}
-          justifyContent={"center"}
-          zIndex={1}
-          color={"white"}
-          p={4}
-        >
-          <Heading>Interview Answer Tracker</Heading>
-          <Text fontSize={12}>by Yakobus Iryanto Prasethio</Text>
-        </VStack>
+        <Navbar />
         {isLoadingCheckSession ? (
           <Flex
             grow={1}
@@ -367,36 +242,14 @@ function App() {
               spacing={{ base: 8, lg: 8 }}
               w={{ base: "full", lg: "60%" }}
             >
-              <VStack spacing={4}>
-                <Heading fontSize={30}>
-                  Beberapa informasi mengenai pertanyaan dan jawaban:
-                </Heading>
-                <Text fontSize={18}>
-                  1. Pertanyaan akan disajikan dalam{" "}
-                  <strong>Bahasa Inggris</strong> dan jawaban Anda perlu
-                  menggunakan <strong>Bahasa Inggris</strong>
-                </Text>
-                <Text fontSize={18} textAlign={"center"}>
-                  2. Anda boleh menjawab pertanyaan berdasarkan pendapat pribadi
-                  atau menggunakan LLM seperti ChatGPT
-                </Text>
-                <Text fontSize={18}>
-                  3. Setelah menjawab pertanyaan, pilih salah satu sumber
-                  jawaban dan tekan submit
-                </Text>
-                <Text fontSize={18}>
-                  4. Setelah menekan submit, pertanyaan selanjutnya akan muncul.{" "}
-                  <strong>Anda boleh berhenti kapan saja</strong>. Terima kasih
-                  sudah berpartisipasi
-                </Text>
-              </VStack>
+              <InformationPanel />
               <Divider />
               <VStack w={"full"} spacing={4}>
                 <Text fontSize={18}>
                   Silahkan jawab pertanyaan wawancara dari seorang HRD di bawah
                   ini, asumsikan bahwa Anda adalah seorang kandidat:
                 </Text>
-                {isLoadingQuestion ? (
+                {loadingQuestion ? (
                   <HStack>
                     <Spinner
                       thickness="4px"
@@ -416,7 +269,7 @@ function App() {
                   width={"full"}
                   placeholder="Silahkan jawab disini"
                   resize={"none"}
-                  onChange={(e) => setAnswer(e.target.value)}
+                  onChange={handleOnChange}
                   onKeyDown={handleKeyPress}
                   onBlur={handleBlur}
                   onFocus={handleFocus}
@@ -459,9 +312,9 @@ function App() {
                   isDisabled={
                     !source || answer.length === 0 || question.length === 0
                   }
-                  isLoading={isLoadingAnswer}
+                  isLoading={loadingAnswer}
                   loadingText="Loading..."
-                  onClick={() => sendAnswer()}
+                  onClick={() => handleSubmit()}
                 >
                   Submit
                 </Button>
@@ -475,55 +328,17 @@ function App() {
           </Flex>
         )}
       </VStack>
-      <Modal
-        isOpen={isModalOpen}
-        onClose={onClose}
-        isCentered
-        size={"2xl"}
-        closeOnOverlayClick={false}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Syarat penggunaan</ModalHeader>
-          <ModalBody>
-            <Stack spacing={4}>
-              <Text>Dengan mengakses website ini, Anda setuju bahwa:</Text>
-              <OrderedList spacing={4}>
-                <ListItem>
-                  Aktivitas pengetikan Anda, termasuk durasi pengetikan, akan
-                  dilacak untuk tujuan penelitian.
-                </ListItem>
-                <ListItem>
-                  Fungsi copy-paste pada website ini{" "}
-                  <strong>dinonaktifkan</strong>.
-                </ListItem>
-                <ListItem>
-                  Semua data yang dikumpulkan anonim dan hanya akan digunakan
-                  untuk penelitian skripsi.
-                </ListItem>
-                <ListItem>
-                  Anda tidak akan membagikan informasi sensitif atau pribadi
-                  melalui website ini.
-                </ListItem>
-              </OrderedList>
-              <Text fontWeight={700}>
-                Terima kasih telah berkontribusi pada penelitian saya. Harap
-                menggunakan browser Chrome.
-              </Text>
-            </Stack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              onClick={() => getSession()}
-              bgColor={"button"}
-              isLoading={isLoadingAgree}
-              loadingText="Loading..."
-            >
-              Saya sudah membaca
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <ModalAgree
+        onAgree={() => handleAgree()}
+        isOpen={!sessionActive}
+        onClose={onAgreeModalClose}
+        isLoading={isLoadingGetSession}
+      />
+      <ModalTopic
+        isOpen={isModalTopicOpen}
+        setOpen={setModalTopicOpen}
+        onClose={onTopicModalClose}
+      />
     </>
   );
 }
