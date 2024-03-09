@@ -30,7 +30,7 @@ export function useAnswer() {
     const baseUrl = import.meta.env.VITE_BASE_AXIOS_URL;
     const endpoint = isSamsungBrowser
       ? `${baseUrl}/chat/samsung`
-      : `${baseUrl}/chat`;
+      : `${baseUrl}/chat/normal`;
 
     const requestBody = {
       question_id: localStorage.getItem("question_id"),
