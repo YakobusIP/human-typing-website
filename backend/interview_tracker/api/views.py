@@ -37,8 +37,8 @@ class SessionCheckAPIView(APIView):
         # Active session
         return Response({ "session_active": True }, status=status.HTTP_200_OK)
     
-class ChatAPIView(APIView):
-    def get(self, request):
+class ChatGetAPIView(APIView):
+    def get(self, request, question_topic):
         session_key = request.session.session_key
         session = Session.objects.get(session_key=session_key)
         previous_responses = UserResponse.objects.filter(session=session)
@@ -59,8 +59,9 @@ class ChatAPIView(APIView):
 
         template = (
             """
-            You are an interviewer who is interested in the candidate. 
-            You will generate an interview question without access to the candidate's resume and their previous answer. 
+            You are an interviewer who is interested in the candidate.
+            The candidate is majoring in {major}.
+            You will generate an interview question without access to the candidate's resume and their previous answer.
             Use simple English accustomed to a foreigner.
             These are the previous questions that has been asked: {previous_questions}. 
             Generate a new question without numberings.
@@ -71,13 +72,14 @@ class ChatAPIView(APIView):
 
         chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt])
 
-        question = chat.invoke(chat_prompt.format_prompt(previous_questions=previous_questions).to_messages()).to_json()["kwargs"]["content"]
+        question = chat.invoke(chat_prompt.format_prompt(major=question_topic, previous_questions=previous_questions).to_messages()).to_json()["kwargs"]["content"]
 
         new_question = UserResponse.objects.create(session=session, question_text=question)
         new_question.save()
 
         return Response({ "id": new_question.id , "question": question }, status=status.HTTP_200_OK)
     
+class ChatPostAPIView(APIView):
     def post(self, request):
         question_id = request.data.pop("question_id")
 
@@ -101,7 +103,7 @@ class ChatAPIView(APIView):
         return Response(status=status.HTTP_200_OK)
     
 class ChatSamsungInternetGetAPIView(APIView):
-    def get(self, request, session_key):
+    def get(self, request, session_key, question_topic):
         session = Session.objects.get(session_key=session_key)
         previous_responses = UserResponse.objects.filter(session=session)
         serializer = UserResponseSerializer(previous_responses, many=True)
@@ -122,6 +124,7 @@ class ChatSamsungInternetGetAPIView(APIView):
         template = (
             """
             You are an interviewer who is interested in the candidate. 
+            The candidate is majoring in {major}.
             You will generate an interview question without access to the candidate's resume and their previous answer. 
             Use simple English accustomed to a foreigner.
             These are the previous questions that has been asked: {previous_questions}. 
@@ -133,7 +136,7 @@ class ChatSamsungInternetGetAPIView(APIView):
 
         chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt])
 
-        question = chat.invoke(chat_prompt.format_prompt(previous_questions=previous_questions).to_messages()).to_json()["kwargs"]["content"]
+        question = chat.invoke(chat_prompt.format_prompt(major=question_topic, previous_questions=previous_questions).to_messages()).to_json()["kwargs"]["content"]
 
         new_question = UserResponse.objects.create(session=session, question_text=question)
         new_question.save()
