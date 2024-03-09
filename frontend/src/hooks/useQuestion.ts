@@ -8,7 +8,12 @@ export function useQuestion(sessionActive: boolean, isModalTopicOpen: boolean) {
   const [error, setError] = useState(false);
 
   const fetchQuestion = useCallback(async () => {
-    if (!sessionActive || isModalTopicOpen) return;
+    if (
+      !sessionActive ||
+      isModalTopicOpen ||
+      !localStorage.getItem("question_topic")
+    )
+      return;
     setIsLoading(true);
 
     const isSamsungBrowser = /samsungbrowser/i.test(navigator.userAgent);

@@ -192,6 +192,12 @@ function App() {
   };
 
   useEffect(() => {
+    if (!localStorage.getItem("question_topic")) {
+      setModalTopicOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (errorCheckSession || errorGetSession || errorAnswer || errorQuestion) {
       toast({
         title: "Error",
@@ -328,12 +334,15 @@ function App() {
           </Flex>
         )}
       </VStack>
-      <ModalAgree
-        onAgree={() => handleAgree()}
-        isOpen={!sessionActive}
-        onClose={onAgreeModalClose}
-        isLoading={isLoadingGetSession}
-      />
+      {isLoadingCheckSession ? (
+        <ModalAgree
+          onAgree={() => handleAgree()}
+          isOpen={!sessionActive}
+          onClose={onAgreeModalClose}
+          isLoading={isLoadingGetSession}
+        />
+      ) : null}
+
       <ModalTopic
         isOpen={isModalTopicOpen}
         setOpen={setModalTopicOpen}
