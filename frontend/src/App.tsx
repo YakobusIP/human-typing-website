@@ -110,11 +110,12 @@ function App() {
       if (newAnswer.length < lastAnswer.length) {
         setBackspaceCount(backspaceCount + 1);
       } else {
-        const addedText = newAnswer.toLowerCase().replace(lastAnswer, "");
-        if (addedText.match(/[a-z]/i)) {
+        const addedText = newAnswer.replace(lastAnswer, "");
+        if (addedText.match(/^[A-Za-z]+$/)) {
           setKeyPresses((prevKeyPresses: KeyPresses) => ({
             ...prevKeyPresses,
-            [addedText]: (prevKeyPresses[addedText] || 0) + 1
+            [addedText.toLowerCase()]:
+              (prevKeyPresses[addedText.toLowerCase()] || 0) + 1
           }));
         }
       }
