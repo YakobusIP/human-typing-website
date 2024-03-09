@@ -56,7 +56,11 @@ export function ModalTopic({ isOpen, setOpen, onClose }: Props) {
           </Stack>
         </ModalBody>
         <ModalFooter>
-          <Button onClick={submitHandler} bgColor={"button"}>
+          <Button
+            onClick={submitHandler}
+            bgColor={"button"}
+            isDisabled={questionTopic.length === 0}
+          >
             Submit
           </Button>
         </ModalFooter>

@@ -53,8 +53,7 @@ export function ModalAgree({ onAgree, isOpen, onClose, isLoading }: Props) {
               </ListItem>
             </OrderedList>
             <Text fontWeight={700}>
-              Terima kasih telah berkontribusi pada penelitian saya. Harap
-              menggunakan browser Chrome.
+              Terima kasih telah berkontribusi pada penelitian saya.
             </Text>
           </Stack>
         </ModalBody>
