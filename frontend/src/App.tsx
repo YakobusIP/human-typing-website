@@ -335,20 +335,21 @@ function App() {
           </Flex>
         )}
       </VStack>
-      {isLoadingCheckSession ? (
+      {isLoadingCheckSession ? null : (
         <ModalAgree
           onAgree={() => handleAgree()}
           isOpen={!sessionActive}
           onClose={onAgreeModalClose}
           isLoading={isLoadingGetSession}
         />
-      ) : null}
-
-      <ModalTopic
-        isOpen={isModalTopicOpen}
-        setOpen={setModalTopicOpen}
-        onClose={onTopicModalClose}
-      />
+      )}
+      {isLoadingGetSession ? null : (
+        <ModalTopic
+          isOpen={isModalTopicOpen}
+          setOpen={setModalTopicOpen}
+          onClose={onTopicModalClose}
+        />
+      )}
     </>
   );
 }
