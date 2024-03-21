@@ -2,7 +2,6 @@
 import { BaseSyntheticEvent, useEffect, useState } from "react";
 import {
   Button,
-  Divider,
   Flex,
   Stack,
   Text,
@@ -10,7 +9,6 @@ import {
   VStack,
   useToast
 } from "@chakra-ui/react";
-import { InformationPanel } from "./components/InformationPanel";
 import { Navbar } from "./components/Navbar";
 import { useAnswer } from "./hooks/useAnswer";
 
@@ -99,6 +97,8 @@ function App() {
       typing_duration: duration,
       response_type: responseTypeMapping(source)
     });
+
+    setDuration(0);
   };
 
   useEffect(() => {
