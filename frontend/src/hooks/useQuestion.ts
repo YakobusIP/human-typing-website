@@ -8,7 +8,12 @@ export function useQuestion(sessionActive: boolean, isModalTopicOpen: boolean) {
   const [error, setError] = useState(false);
 
   const fetchQuestion = useCallback(async () => {
-    if (!sessionActive || isModalTopicOpen) return;
+    if (
+      !sessionActive ||
+      isModalTopicOpen ||
+      !localStorage.getItem("question_topic")
+    )
+      return;
     setIsLoading(true);
 
     const isSamsungBrowser = /samsungbrowser/i.test(navigator.userAgent);
@@ -18,7 +23,7 @@ export function useQuestion(sessionActive: boolean, isModalTopicOpen: boolean) {
     const questionTopic = localStorage.getItem("question_topic");
     const endpoint = isSamsungBrowser
       ? `${baseUrl}/chat/samsung/${sessionKey}/${questionTopic}`
-      : `${baseUrl}/chat/${questionTopic}`;
+      : `${baseUrl}/chat/normal/${questionTopic}`;
 
     try {
       const response = await axios.get(endpoint, { withCredentials: true });

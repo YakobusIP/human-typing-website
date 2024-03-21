@@ -28,10 +28,9 @@ export function useAnswer() {
     const isSamsungBrowser = /samsungbrowser/i.test(navigator.userAgent);
 
     const baseUrl = import.meta.env.VITE_BASE_AXIOS_URL;
-    const sessionKey = localStorage.getItem("session_key");
     const endpoint = isSamsungBrowser
-      ? `${baseUrl}/chat/samsung/${sessionKey}`
-      : `${baseUrl}/chat`;
+      ? `${baseUrl}/chat/samsung`
+      : `${baseUrl}/chat/normal`;
 
     const requestBody = {
       question_id: localStorage.getItem("question_id"),

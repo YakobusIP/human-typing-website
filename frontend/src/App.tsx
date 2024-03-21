@@ -110,11 +110,12 @@ function App() {
       if (newAnswer.length < lastAnswer.length) {
         setBackspaceCount(backspaceCount + 1);
       } else {
-        const addedText = newAnswer.toLowerCase().replace(lastAnswer, "");
-        if (addedText.match(/[a-z]/i)) {
+        const addedText = newAnswer.replace(lastAnswer, "");
+        if (addedText.match(/^[A-Za-z]+$/)) {
           setKeyPresses((prevKeyPresses: KeyPresses) => ({
             ...prevKeyPresses,
-            [addedText]: (prevKeyPresses[addedText] || 0) + 1
+            [addedText.toLowerCase()]:
+              (prevKeyPresses[addedText.toLowerCase()] || 0) + 1
           }));
         }
       }
@@ -190,6 +191,12 @@ function App() {
 
     await fetchQuestion();
   };
+
+  useEffect(() => {
+    if (!localStorage.getItem("question_topic")) {
+      setModalTopicOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (errorCheckSession || errorGetSession || errorAnswer || errorQuestion) {
@@ -282,7 +289,7 @@ function App() {
                 <Stack
                   direction={{ base: "column", "2xl": "row" }}
                   spacing={4}
-                  w={"80%"}
+                  w={{ base: "full", lg: "80%" }}
                 >
                   <Button
                     w={"full"}
@@ -308,7 +315,7 @@ function App() {
                 </Stack>
                 <Button
                   bgColor={"button"}
-                  w={"25%"}
+                  w={{ base: "full", lg: "25%" }}
                   isDisabled={
                     !source || answer.length === 0 || question.length === 0
                   }
@@ -328,17 +335,21 @@ function App() {
           </Flex>
         )}
       </VStack>
-      <ModalAgree
-        onAgree={() => handleAgree()}
-        isOpen={!sessionActive}
-        onClose={onAgreeModalClose}
-        isLoading={isLoadingGetSession}
-      />
-      <ModalTopic
-        isOpen={isModalTopicOpen}
-        setOpen={setModalTopicOpen}
-        onClose={onTopicModalClose}
-      />
+      {isLoadingCheckSession ? null : (
+        <ModalAgree
+          onAgree={() => handleAgree()}
+          isOpen={!sessionActive}
+          onClose={onAgreeModalClose}
+          isLoading={isLoadingGetSession}
+        />
+      )}
+      {isLoadingGetSession ? null : (
+        <ModalTopic
+          isOpen={isModalTopicOpen}
+          setOpen={setModalTopicOpen}
+          onClose={onTopicModalClose}
+        />
+      )}
     </>
   );
 }
