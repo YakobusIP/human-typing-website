@@ -1,5 +1,10 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { BaseSyntheticEvent, useEffect, useState } from "react";
+import {
+  BaseSyntheticEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from "react";
 import {
   Button,
   Flex,
@@ -37,10 +42,13 @@ function App() {
   // Typing metrics state
   const [keyPresses, setKeyPresses] = useState(initializeKeyPressDict());
   const [backspaceCount, setBackspaceCount] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
   const [source, setSource] = useState<string>();
+
+  const [isTyping, setIsTyping] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingDelay = 3000;
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const key = event.key.toLowerCase();
@@ -52,23 +60,35 @@ function App() {
         [key]: (prevKeyPresses[key] || 0) + 1
       }));
     }
-  };
 
-  const handleBlur = () => {
-    if (isTyping) {
-      const endTime = Date.now();
-      const currentDuration = Math.round((endTime - startTime) / 1000);
-      setDuration((duration) => duration + currentDuration);
-      setIsTyping(false); // Pause typing
-    }
-  };
-
-  const handleFocus = () => {
     if (!isTyping) {
-      setStartTime(Date.now());
       setIsTyping(true);
+      setStartTime(Date.now());
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(updateDuration, typingDelay);
     }
   };
+
+  const updateDuration = useCallback(() => {
+    if (isTyping) {
+      const newDuration = Math.floor((Date.now() - startTime) / 1000);
+      setDuration((duration) => duration + newDuration);
+      setIsTyping(false);
+    }
+  }, [isTyping, startTime]);
+
+  const handleBlur = useCallback(() => {
+    updateDuration();
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); // Pause typing
+  }, [updateDuration]);
+
+  const handleFocus = useCallback(() => {
+    if (!isTyping) {
+      setIsTyping(true);
+      setStartTime(Date.now());
+    }
+  }, [isTyping]);
 
   const handleCopyPaste = (event: BaseSyntheticEvent) => {
     event.preventDefault();
@@ -98,8 +118,30 @@ function App() {
       response_type: responseTypeMapping(source)
     });
 
+    setSource("");
     setDuration(0);
+    setBackspaceCount(0);
+    setKeyPresses(initializeKeyPressDict());
+    setIsTyping(false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        updateDuration();
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      }
+    };
+
+    // Add event listener for visibility change
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Remove event listener on cleanup
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [updateDuration]); // Empty dependency array ensures this effect runs only once on mount
 
   useEffect(() => {
     if (errorAnswer) {
@@ -109,14 +151,7 @@ function App() {
         status: "error"
       });
     }
-  }, [errorAnswer]);
-
-  useEffect(() => {
-    if (answer.length > 0 && !isTyping) {
-      setIsTyping(true);
-      setStartTime(Date.now());
-    }
-  }, [answer, isTyping]);
+  }, [toast, errorAnswer]);
 
   return (
     <>
