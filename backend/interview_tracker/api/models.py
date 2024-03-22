@@ -1,6 +1,4 @@
 from django.db import models
-from django.contrib.sessions.models import Session
-import uuid
 
 class UserResponse(models.Model):
     class ResponseType(models.TextChoices):
@@ -8,13 +6,7 @@ class UserResponse(models.Model):
         AI_PARAPHRASE = "AI_PARAPHRASE", "AI Paraphrased"
         FULLY_AI = "FULLY_AI", "Fully AI"
 
-    class DeviceType(models.TextChoices):
-        DESKTOP = "DESKTOP", "Desktop"
-        MOBILE = "MOBILE", "Mobile"
-        TABLET = "TABLET", "Tablet"
-
-    session = models.ForeignKey(Session, on_delete=models.CASCADE)
-    question_text = models.TextField()
+    question_text = models.TextField(null=True, blank=True)
     answer_text = models.TextField(null=True, blank=True)
 
     # Typing analysis
@@ -23,11 +15,7 @@ class UserResponse(models.Model):
 
     # Duration analysis
     typing_duration = models.IntegerField(default=0)
-    question_presented_at = models.DateTimeField(null=True, blank=True)
-    answer_submitted_at = models.DateTimeField(null=True, blank=True)
-    total_interaction_time = models.IntegerField(null=True, blank=True)
 
     # Response and device types
     response_type = models.CharField(max_length=15, choices=ResponseType.choices, null=True, blank=True)
-    device_type = models.CharField(max_length=10, choices=DeviceType.choices, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

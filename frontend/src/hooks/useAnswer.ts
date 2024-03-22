@@ -9,12 +9,7 @@ type AnswerRequest = {
   backspace_count: number;
   letter_click_counts: KeyPresses;
   typing_duration: number;
-  question_presented_at: string;
-  answer_submitted_at: string;
-  total_interaction_time: number;
   response_type: string;
-  device_type: string;
-  session_key?: string;
 };
 
 export function useAnswer() {
@@ -25,23 +20,13 @@ export function useAnswer() {
   const sendAnswer = async (metadata: AnswerRequest) => {
     setIsLoading(true);
 
-    const isSamsungBrowser = /samsungbrowser/i.test(navigator.userAgent);
-
     const baseUrl = import.meta.env.VITE_BASE_AXIOS_URL;
-    const endpoint = isSamsungBrowser
-      ? `${baseUrl}/chat/samsung`
-      : `${baseUrl}/chat/normal`;
+    const endpoint = `${baseUrl}/chat`;
 
     const requestBody = {
-      question_id: localStorage.getItem("question_id"),
       answer_text: answer,
       ...metadata
     };
-
-    if (isSamsungBrowser) {
-      requestBody.session_key =
-        localStorage.getItem("session_key") ?? undefined;
-    }
 
     try {
       await axios.post(endpoint, requestBody, { withCredentials: true });
