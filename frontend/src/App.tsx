@@ -1,13 +1,8 @@
-import {
-  BaseSyntheticEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState
-} from "react";
+import { BaseSyntheticEvent, useCallback, useEffect, useState } from "react";
 import {
   Button,
   Flex,
+  HStack,
   Stack,
   Text,
   Textarea,
@@ -44,11 +39,10 @@ function App() {
   const [backspaceCount, setBackspaceCount] = useState(0);
   const [source, setSource] = useState<string>();
 
+  const [timerRunning, setTimerRunning] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingDelay = 3000;
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const key = event.key.toLowerCase();
@@ -60,35 +54,14 @@ function App() {
         [key]: (prevKeyPresses[key] || 0) + 1
       }));
     }
-
-    if (!isTyping) {
-      setIsTyping(true);
-      setStartTime(Date.now());
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(updateDuration, typingDelay);
-    }
   };
 
   const updateDuration = useCallback(() => {
     if (isTyping) {
       const newDuration = Math.floor((Date.now() - startTime) / 1000);
-      setDuration((duration) => duration + newDuration);
-      setIsTyping(false);
+      setDuration(newDuration);
     }
   }, [isTyping, startTime]);
-
-  const handleBlur = useCallback(() => {
-    updateDuration();
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); // Pause typing
-  }, [updateDuration]);
-
-  const handleFocus = useCallback(() => {
-    if (!isTyping) {
-      setIsTyping(true);
-      setStartTime(Date.now());
-    }
-  }, [isTyping]);
 
   const handleCopyPaste = (event: BaseSyntheticEvent) => {
     event.preventDefault();
@@ -118,30 +91,30 @@ function App() {
       response_type: responseTypeMapping(source)
     });
 
+    resetAll();
+  };
+
+  const resetAll = () => {
     setSource("");
+    setAnswer("");
+    setIsTyping(false);
+    setTimerRunning(false);
     setDuration(0);
     setBackspaceCount(0);
     setKeyPresses(initializeKeyPressDict());
-    setIsTyping(false);
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        updateDuration();
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      }
-    };
-
-    // Add event listener for visibility change
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Remove event listener on cleanup
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [updateDuration]); // Empty dependency array ensures this effect runs only once on mount
+  const startStopTimer = () => {
+    if (!timerRunning) {
+      setIsTyping(true);
+      setStartTime(Date.now() - duration * 1000);
+      setTimerRunning(true);
+    } else {
+      updateDuration();
+      setTimerRunning(false);
+      setIsTyping(false);
+    }
+  };
 
   useEffect(() => {
     if (errorAnswer) {
@@ -152,6 +125,20 @@ function App() {
       });
     }
   }, [toast, errorAnswer]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined = undefined;
+    if (timerRunning) {
+      interval = setInterval(() => {
+        updateDuration();
+      }, 1000);
+    } else if (!timerRunning && interval) {
+      clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timerRunning, updateDuration]);
 
   return (
     <>
@@ -169,7 +156,12 @@ function App() {
             <Text fontSize={18}>
               Silahkan jawab pertanyaan yang diberikan pada kotak di bawah ini:
             </Text>
-
+            <HStack>
+              <Button onClick={startStopTimer}>
+                {timerRunning ? "Stop timer" : "Start timer"}
+              </Button>
+              <Button onClick={resetAll}>Reset halaman</Button>
+            </HStack>
             <Textarea
               value={answer}
               rows={8}
@@ -178,11 +170,14 @@ function App() {
               resize={"none"}
               onKeyDown={handleKeyPress}
               onChange={(e) => setAnswer(e.target.value)}
-              onBlur={handleBlur}
-              onFocus={handleFocus}
               onCopy={handleCopyPaste}
               onPaste={handleCopyPaste}
+              isDisabled={!timerRunning}
             />
+            <HStack spacing={10}>
+              <Text fontSize={18}>Durasi pengetikan: {duration} detik</Text>
+              <Text fontSize={18}>Jumlah backspace: {backspaceCount}</Text>
+            </HStack>
             <Text fontSize={18}>Silahkan pilih salah satu sumber jawaban</Text>
             <Stack
               direction={{ base: "column", "2xl": "row" }}
